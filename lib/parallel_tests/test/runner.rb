@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require 'shellwords'
 require 'parallel_tests'
+require 'timeout'
 
 module ParallelTests
   module Test
@@ -86,6 +87,7 @@ module ParallelTests
         end
 
         def execute_command(cmd, process_number, num_processes, options)
+          puts "[parallel_tests] Test::Runner#execute_command Begin #{process_number}"
           number = test_env_number(process_number, options).to_s
           env = (options[:env] || {}).merge(
             "TEST_ENV_NUMBER" => number,
@@ -99,7 +101,9 @@ module ParallelTests
 
           print_command(cmd, env) if report_process_command?(options) && !options[:serialize_stdout]
 
-          execute_command_and_capture_output(env, cmd, options)
+          r = execute_command_and_capture_output(env, cmd, options)
+          puts "[parallel_tests] Test::Runner#execute_command End #{process_number}"
+          r
         end
 
         def print_command(command, env)
@@ -108,6 +112,7 @@ module ParallelTests
         end
 
         def execute_command_and_capture_output(env, cmd, options)
+          puts "[parallel_tests] Test::Runner#execute_command_and_capture_output Begin #{env} - #{cmd}"
           popen_options = {} # do not add `pgroup: true`, it will break `binding.irb` inside the test
           popen_options[:err] = [:child, :out] if options[:combine_stderr]
 
@@ -122,7 +127,7 @@ module ParallelTests
           seed = output[/seed (\d+)/, 1]
 
           output = "#{Shellwords.shelljoin(cmd)}\n#{output}" if report_process_command?(options) && options[:serialize_stdout]
-
+          puts "[parallel_tests] Test::Runner#execute_command_and_capture_output End #{env}"
           { env: env, stdout: output, exit_status: exitstatus, command: cmd, seed: seed }
         end
 

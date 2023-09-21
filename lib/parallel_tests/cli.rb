@@ -8,6 +8,14 @@ require 'pathname'
 module ParallelTests
   class CLI
     def run(argv)
+      puts "[parallel_tests] CLI#run: #{argv}"
+
+      Signal.list.keys do |signal|
+        Signal.trap(signal) do
+          puts "[parallel_tests] Received signal #{signal}"
+        end
+      end
+
       Signal.trap("INT") { handle_interrupt }
 
       options = parse_options!(argv)
@@ -19,6 +27,8 @@ module ParallelTests
 
       options[:first_is_1] ||= first_is_1?
 
+      puts "[parallel_tests] #{options}"
+
       if options[:execute]
         execute_command_in_parallel(options[:execute], num_processes, options)
       else
@@ -29,6 +39,7 @@ module ParallelTests
     private
 
     def handle_interrupt
+      puts "[parallel_tests] received INT signal"
       @graceful_shutdown_attempted ||= false
       Kernel.exit if @graceful_shutdown_attempted
 
@@ -69,6 +80,7 @@ module ParallelTests
     end
 
     def run_tests_in_parallel(num_processes, options)
+      puts "[parallel_tests] Running tests in parallel: #{num_processes}, #{options}"
       test_results = nil
 
       run_tests_proc = -> do
@@ -373,7 +385,10 @@ module ParallelTests
         end
       else
         execute_in_parallel(runs, runs.size, options) do |i|
-          ParallelTests::Test::Runner.execute_command(command, i, num_processes, options)
+          puts "[parallel_tests] CLI#execute_in_parallel Begin #{i}"
+          r = ParallelTests::Test::Runner.execute_command(command, i, num_processes, options)
+          puts "[parallel_tests] CLI#execute_in_parallel End #{i}"
+          r
         end
       end.flatten
 
